@@ -1,0 +1,6 @@
+{
+  "name": "ml-constraint",
+  "version": "1.0.0",
+  "description": "Pre-built custom search constraints that go beyond what the MarkLogic REST API provides OOTB",
+  "repository": "https://github.com/grtjn/ml-constraint.git"
+}
