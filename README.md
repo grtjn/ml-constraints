@@ -154,9 +154,9 @@ would become:
 
     <constraint name="myconstraint">
       <custom>
-        <parse apply="parse-structured" ns="http://marklogic.com/additional-query-constraint" at="/ext/mlpm_modules/ml-constraints/additional-query-constraint.xqy"/>
-        <start-facet apply="start" ns="http://marklogic.com/additional-query-constraint" at="/ext/mlpm_modules/ml-constraints/additional-query-constraint.xqy"/>
-        <finish-facet apply="finish" ns="http://marklogic.com/additional-query-constraint" at="/ext/mlpm_modules/ml-constraints/additional-query-constraint.xqy"/>
+        <parse apply="parse-structured" ns="http://marklogic.com/grouping-constraint" at="/ext/mlpm_modules/ml-constraints/grouping-constraint.xqy"/>
+        <start-facet apply="start" ns="http://marklogic.com/grouping-constraint" at="/ext/mlpm_modules/ml-constraints/grouping-constraint.xqy"/>
+        <finish-facet apply="finish" ns="http://marklogic.com/grouping-constraint" at="/ext/mlpm_modules/ml-constraints/grouping-constraint.xqy"/>
       </custom>
       <annotation>
       
