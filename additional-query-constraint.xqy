@@ -18,14 +18,14 @@ declare function facet:parse-structured(
   as schema-element(cts:query)
 {
   (: pull parameters from $query-elem :)
-  let $constraint-name := $query-elem/search:constraint-name
-  let $terms := $query-elem//search:text
+  let $constraint-name as xs:string := $query-elem/search:constraint-name
+  let $terms as xs:string* := $query-elem//(search:text, search:value)
 
   (: take appropriate constraint from full $options :)
   let $constraint := $options/search:constraint[@name eq $constraint-name]
   
   (: pull real constraint def from annotation :)
-  let $real-constraint := facet:_getRealConstraint( $constraint )
+  let $real-constraint := facet:_get-real-constraint( $constraint )
 
   (: reconstruct full options, but with $real-constraint :)
   let $real-options :=
@@ -65,9 +65,9 @@ declare function facet:start(
   as item()*
 {
   (: combine provided $query with possible additional-query from $constraint :)
-  let $combined-query := facet:_getCombinedQuery( $query, $constraint )
+  let $combined-query := facet:_get-combined-query( $query, $constraint )
   (: pull real constraint def from annotation :)
-  let $real-constraint := facet:_getRealConstraint( $constraint )
+  let $real-constraint := facet:_get-real-constraint( $constraint )
   
   (: and loop through to search impl for start-facet :)
   let $buckets := 
@@ -78,7 +78,7 @@ declare function facet:start(
     impl:start-facet(
       $real-constraint,
       $buckets,
-      $combined-query,
+      document{$combined-query}/*,
       $quality-weight, 
       $forests
     )
@@ -95,9 +95,9 @@ declare function facet:finish(
   as element(search:facet)
 {
   (: combine provided $query with possible additional-query from $constraint :)
-  let $combined-query := facet:_getCombinedQuery( $query, $constraint )
+  let $combined-query := facet:_get-combined-query( $query, $constraint )
   (: pull real constraint def from annotation :)
-  let $real-constraint := facet:_getRealConstraint( $constraint )
+  let $real-constraint := facet:_get-real-constraint( $constraint )
 
   (: and loop through to search impl for start-facet :)
   let $buckets := 
@@ -109,13 +109,13 @@ declare function facet:finish(
       $real-constraint,
       $buckets,
       $start,
-      $combined-query,
+      document{$combined-query}/*,
       $quality-weight,
       $forests
     )
 };
 
-declare private function facet:_getCombinedQuery(
+declare private function facet:_get-combined-query(
   $query as cts:query?,
   $constraint as element(search:constraint)
 )
@@ -132,7 +132,7 @@ declare private function facet:_getCombinedQuery(
       $queries
 };
 
-declare private function facet:_getRealConstraint(
+declare private function facet:_get-real-constraint(
   $constraint as element(search:constraint)
 )
   as element(opt:constraint)
@@ -140,7 +140,7 @@ declare private function facet:_getRealConstraint(
   element opt:constraint {
     $constraint/@*,
     
-    for $node in $constraint/search:annotation/*[ not( self::search:additional-query ) ]
+    for $node in $constraint/search:annotation/*[ empty( self::search:additional-query ) ]
     return
       element { node-name($node) } {
         $node/@*,
