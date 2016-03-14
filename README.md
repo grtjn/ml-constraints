@@ -82,6 +82,69 @@ would become:
 - Custom constraints currently only support `EQ` comparison, e.g. `myconstraint:somevalue`, and **not** `myconstraint GT somevalue` (RFE has been filed)
 - Due to a bug/limitation of the REST api parse-structured-style constraint are not supported by /v1/suggest (Bug has been filed)
 
+## dynamic-bucketing-constraint
+
+This custom constraint can be wrapped around any existing search constraint to apply an additional query that only applies to that search constraint (and its facet values).
+
+### Usage
+
+Take an existing range constraint in your REST api query options, and put the following after the open tag `<constraint name="myconstraint">`:
+
+    <constraint name="myconstraint">
+      <custom facet="true">
+        <parse apply="parse-structured" ns="http://marklogic.com/dynamic-buckets-constraint" at="/ext/mlpm_modules/ml-constraints/dynamic-buckets-constraint.xqy"/>
+        <start-facet apply="start" ns="http://marklogic.com/dynamic-buckets-constraint" at="/ext/mlpm_modules/ml-constraints/dynamic-buckets-constraint.xqy"/>
+        <finish-facet apply="finish" ns="http://marklogic.com/dynamic-buckets-constraint" at="/ext/mlpm_modules/ml-constraints/dynamic-buckets-constraint.xqy"/>
+      </custom>
+      <annotation>
+
+Put the following before the closing tag `</constraint>`:
+
+        <config xmlns="http://marklogic.com/dynamic-buckets-constraint">
+          <min>1996</min>
+          <max>2016</max>
+        </config>
+      </annotation>
+    </constraint>
+
+Inside additional query you can insert any serialized cts:query, for instance a cts:collection-query:
+
+
+E.g. this:
+
+    <constraint name="myconstraint">
+    
+      <range type="xs:date" facet="true">
+        <facet-option>item-order</facet-option>
+        <facet-option>ascending</facet-option>
+        <element ns="some-ns.com/example" name="date"/>
+      </range>
+    
+    </constraint>
+
+would become:
+
+    <constraint name="myconstraint">
+      <custom facet="true">
+        <parse apply="parse-structured" ns="http://marklogic.com/dynamic-buckets-constraint" at="/ext/mlpm_modules/ml-constraints/dynamic-buckets-constraint.xqy"/>
+        <start-facet apply="start" ns="http://marklogic.com/dynamic-buckets-constraint" at="/ext/mlpm_modules/ml-constraints/dynamic-buckets-constraint.xqy"/>
+        <finish-facet apply="finish" ns="http://marklogic.com/dynamic-buckets-constraint" at="/ext/mlpm_modules/ml-constraints/dynamic-buckets-constraint.xqy"/>
+      </custom>
+      <annotation>
+      
+        <range type="xs:date" facet="true">
+          <facet-option>item-order</facet-option>
+          <facet-option>ascending</facet-option>
+          <element ns="some-ns.com/example" name="date"/>
+        </range>
+        
+        <config xmlns="http://marklogic.com/dynamic-buckets-constraint">
+          <min>1996</min>
+          <max>2016</max>
+        </config>
+      </annotation>
+    </constraint>
+
 ## grouping-constraint
 
 This custom constraint can be wrapped around any existing search constraint to apply grouping of values leveraging value-match patterns.
