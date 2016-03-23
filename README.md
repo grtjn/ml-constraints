@@ -84,7 +84,7 @@ would become:
 
 ## dynamic-bucketing-constraint
 
-This custom constraint can be wrapped around any existing search constraint to apply an additional query that only applies to that search constraint (and its facet values).
+This custom constraint can be wrapped around any existing range constraint to apply dynamic buckets, based on min/max or number of buckets.
 
 ### Usage
 
@@ -144,6 +144,8 @@ would become:
         </config>
       </annotation>
     </constraint>
+
+Note: min/max are only used for xs:date range constraints, and represent minimum year, and maximum year for which buckets are supposed to be generated. If the actual minimum or maximum goes beyond, first and/or last bucket name is prepended with the ≤ resp ≥ character. All other range constraint data types currently ignore min/max and take nr-buckets instead. A fixed number of buckets (defaulting to 10) is created, evenly spread between actual min and max.
 
 ## grouping-constraint
 

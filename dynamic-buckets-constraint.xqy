@@ -33,8 +33,11 @@ declare function facet:parse-structured(
       let $label := $term
 
       let $start :=
-        (: ≥ one year :)
-        if (matches($term, "^≥\d\d\d\d$")) then
+        (: > year :)
+        if (matches($term, "^>\d\d\d\d$")) then
+          xs:date(xs:gYear(substring($term,2))) + xs:yearMonthDuration("P1Y")
+        (: ≥ year :)
+        else if (matches($term, "^≥\d\d\d\d$")) then
           xs:date(xs:gYear(substring($term,2)))
         (: one year :)
         else if (matches($term, "^\d\d\d\d$")) then
@@ -57,8 +60,11 @@ declare function facet:parse-structured(
         else ()
 
       let $end :=
-        (: ≤ one year :)
-        if (matches($term, "^≤\d\d\d\d$")) then
+        (: < year :)
+        if (matches($term, "^<\d\d\d\d$")) then
+          xs:date(xs:gYear(substring($term,2)))
+        (: ≤ year :)
+        else if (matches($term, "^≤\d\d\d\d$")) then
           xs:date(xs:gYear(substring($term,2))) + xs:yearMonthDuration("P1Y")
         (: one year :)
         else if (matches($term, "^\d\d\d\d$")) then
@@ -91,8 +97,6 @@ declare function facet:parse-structured(
 
     else ()
 
-  let $_ := xdmp:log($buckets)
-
   (: reconstruct full options, but with $real-constraint+buckets :)
   let $real-options :=
     element { node-name($options) } {
@@ -118,9 +122,7 @@ declare function facet:parse-structured(
       <searchdev:tok type="term">{ $term }</searchdev:tok>
   )
   let $query := impl:parse($toks, $real-options, 0)
-  
-  let $_ := xdmp:log($query)
-  
+
   return document{$query}/*
 };
 
@@ -176,11 +178,6 @@ declare function facet:start(
       else
         let $min-year := max((year-from-date($min), $abs-min/xs:integer(.)))
         let $max-year := min((year-from-date($max), $abs-max/xs:integer(.)))
-
-        (: auto-recall data is a bit of a mess
-        let $min-year := if ($max-year eq $abs-min) then year-from-date($min) else $min-year
-        let $max-year := if ($min-year eq $abs-max) then year-from-date($max) else $max-year
-        :)
 
         for $year in ($min-year to $max-year)
         let $start := xs:date(xs:gYear(format-number($year, "0000")))
@@ -259,8 +256,6 @@ declare function facet:finish(
 )
   as element(search:facet)
 {
-  (:xdmp:log($start),:)
-  
   (: grab bucketed-constraint from $start :)
   let $bucketed-constraint := $start[1]
   let $real-start := subsequence($start, 2)
@@ -275,7 +270,6 @@ declare function facet:finish(
       $quality-weight,
       $forests
     )
-  let $_ := xdmp:log($finish)
   return element { node-name($finish) } {
     $finish/(@* except @type),
     attribute type { 'custom' },
