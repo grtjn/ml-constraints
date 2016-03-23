@@ -82,7 +82,7 @@ would become:
 - Custom constraints currently only support `EQ` comparison, e.g. `myconstraint:somevalue`, and **not** `myconstraint GT somevalue` (RFE has been filed)
 - Due to a bug/limitation of the REST api parse-structured-style constraint are not supported by /v1/suggest (Bug has been filed)
 
-## dynamic-bucketing-constraint
+## dynamic-buckets-constraint
 
 This custom constraint can be wrapped around any existing range constraint to apply dynamic buckets, based on min/max or number of buckets.
 
