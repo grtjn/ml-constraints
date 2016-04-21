@@ -26,9 +26,11 @@ declare function facet:parse-structured(
   
   (: pull real constraint def from annotation :)
   let $real-constraint := facet:_get-real-constraint( $constraint )
+  let $isDateConstraint := $real-constraint/search:range/@type = (xs:QName('xs:date'), xs:QName('xs:dateTime'))
+  let $isDateTimeConstraint := $real-constraint/search:range/@type = xs:QName('xs:dateTime')
 
   let $buckets :=
-    if ($real-constraint/search:range/@type = (xs:QName('xs:date'), xs:QName('xs:dateTime'))) then
+    if ($isDateConstraint) then
       for $term in $terms
       let $label := $term
 
@@ -86,14 +88,16 @@ declare function facet:parse-structured(
           xs:date(substring($term, 12)) + xs:dayTimeDuration("P1D")
         else ()
 
+      (: type case $start/$end to match index type :)
       let $start :=
-        if (exists($start) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+        if (exists($start) and $isDateTimeConstraint) then
           xs:dateTime($start)
         else $start
       let $end :=
-        if (exists($end) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
-          xs:dateTime($end) + xs:dayTimeDuration("P1D")
+        if (exists($end) and $isDateTimeConstraint) then
+          xs:dateTime($end)
         else $end
+
       where exists($start) or exists($end)
       return
         element opt:bucket {
@@ -151,6 +155,8 @@ declare function facet:start(
 
   (: pull real constraint def from annotation :)
   let $real-constraint := facet:_get-real-constraint( $constraint )
+  let $isDateConstraint := $real-constraint/search:range/@type = (xs:QName('xs:date'), xs:QName('xs:dateTime'))
+  let $isDateTimeConstraint := $real-constraint/search:range/@type = xs:QName('xs:dateTime')
 
   (: loop through to search impl to derive index reference from $real-constraint :)
   let $reference := impl:construct-reference(impl:get-refspecs($real-constraint))
@@ -161,13 +167,19 @@ declare function facet:start(
   
   (: calculate buckets :)
   let $buckets :=
-    if ($real-constraint/search:range/@type = (xs:QName('xs:date'), xs:QName('xs:dateTime'))) then
-      let $max := xs:date($max)
+    if ($isDateConstraint) then
+      let $max :=
+        if ($isDateTimeConstraint) then
+          xs:date($max) + xs:dayTimeDuration("P1D") (: round up because of partial days :)
+        else
+          xs:date($max)
       let $min := xs:date($min)
       return
       if (year-from-date($min) eq year-from-date($max)) then
         if (month-from-date($min) eq month-from-date($max)) then
-          if ($real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+          if ($isDateTimeConstraint) then
+
+            (: apply day buckets in case of dateTime, with minimum of 1 bucket :)
             let $last := max(( ($max - $min) div xs:dayTimeDuration("P1D"), 1 ))
             for $i in (1 to $last)
             let $end := xs:dateTime($min + xs:dayTimeDuration(concat("P", $i, "D")))
@@ -184,7 +196,10 @@ declare function facet:start(
                 attribute name { $label },
                 $label
               }
+
+          (: no need for day buckets with xs:date :)
           else ()
+
         else
           let $year := xs:gYear(format-number(year-from-date($min),"0000"))
 
@@ -192,14 +207,17 @@ declare function facet:start(
           let $end := xs:date($year) + xs:yearMonthDuration(concat("P", $i, "M"))
           let $start := $end - xs:yearMonthDuration("P1M")
           let $label := concat($year, '-', format-number($i, "00"))
+
+          (: type case $start/$end to match index type :)
           let $start :=
-            if (exists($start) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+            if (exists($start) and $isDateTimeConstraint) then
               xs:dateTime($start)
             else $start
           let $end :=
-            if (exists($end) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+            if (exists($end) and $isDateTimeConstraint) then
               xs:dateTime($end)
             else $end
+
           return
             element opt:bucket {
               if ($i ne 1) then
@@ -225,14 +243,17 @@ declare function facet:start(
             "≥" || $year
           else
             $year
+
+        (: type case $start/$end to match index type :)
         let $start :=
-          if (exists($start) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+          if (exists($start) and $isDateTimeConstraint) then
             xs:dateTime($start)
           else $start
         let $end :=
-          if (exists($end) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+          if (exists($end) and $isDateTimeConstraint) then
             xs:dateTime($end)
           else $end
+
         return
           element opt:bucket {
             if ($year ne $min-year) then
@@ -262,6 +283,7 @@ declare function facet:start(
           attribute name { $label },
           $label
         }
+
   let $bucketed-constraint :=
     element opt:options {
       $constraint/root()/(* except search:constraint[@name = $constraint/@name]),
