@@ -28,7 +28,7 @@ declare function facet:parse-structured(
   let $real-constraint := facet:_get-real-constraint( $constraint )
 
   let $buckets :=
-    if ($real-constraint/search:range/@type = xs:QName('xs:date')) then
+    if ($real-constraint/search:range/@type = (xs:QName('xs:date'), xs:QName('xs:dateTime'))) then
       for $term in $terms
       let $label := $term
 
@@ -86,6 +86,14 @@ declare function facet:parse-structured(
           xs:date(substring($term, 12)) + xs:dayTimeDuration("P1D")
         else ()
 
+      let $start :=
+        if (exists($start) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+          xs:dateTime($start)
+        else $start
+      let $end :=
+        if (exists($end) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+          xs:dateTime($end) + xs:dayTimeDuration("P1D")
+        else $end
       where exists($start) or exists($end)
       return
         element opt:bucket {
@@ -112,7 +120,7 @@ declare function facet:parse-structured(
         }
       }
     }
-  
+
   (: loop through to search impl for parse (passing through tokens, because we jump into processing of the AST) :)
   let $toks := (
     <searchdev:tok type="term">{ $constraint-name }</searchdev:tok>,
@@ -153,10 +161,30 @@ declare function facet:start(
   
   (: calculate buckets :)
   let $buckets :=
-    if ($real-constraint/search:range/@type = xs:QName('xs:date')) then
+    if ($real-constraint/search:range/@type = (xs:QName('xs:date'), xs:QName('xs:dateTime'))) then
+      let $max := xs:date($max)
+      let $min := xs:date($min)
+      return
       if (year-from-date($min) eq year-from-date($max)) then
         if (month-from-date($min) eq month-from-date($max)) then
-          ()
+          if ($real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+            let $last := max(( ($max - $min) div xs:dayTimeDuration("P1D"), 1 ))
+            for $i in (1 to $last)
+            let $end := xs:dateTime($min + xs:dayTimeDuration(concat("P", $i, "D")))
+            let $start := xs:dateTime($end - xs:dayTimeDuration("P1D"))
+            let $label := format-dateTime($start,"[Y0001]-[M01]-[D01]")
+            return
+              element opt:bucket {
+                if ($i ne 1) then
+                  attribute ge {$start}
+                else (),
+                if ($i ne $last) then
+                  attribute lt {$end}
+                else (),
+                attribute name { $label },
+                $label
+              }
+          else ()
         else
           let $year := xs:gYear(format-number(year-from-date($min),"0000"))
 
@@ -164,6 +192,14 @@ declare function facet:start(
           let $end := xs:date($year) + xs:yearMonthDuration(concat("P", $i, "M"))
           let $start := $end - xs:yearMonthDuration("P1M")
           let $label := concat($year, '-', format-number($i, "00"))
+          let $start :=
+            if (exists($start) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+              xs:dateTime($start)
+            else $start
+          let $end :=
+            if (exists($end) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+              xs:dateTime($end)
+            else $end
           return
             element opt:bucket {
               if ($i ne 1) then
@@ -189,6 +225,14 @@ declare function facet:start(
             "≥" || $year
           else
             $year
+        let $start :=
+          if (exists($start) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+            xs:dateTime($start)
+          else $start
+        let $end :=
+          if (exists($end) and $real-constraint/search:range/@type = xs:QName('xs:dateTime')) then
+            xs:dateTime($end)
+          else $end
         return
           element opt:bucket {
             if ($year ne $min-year) then
@@ -256,6 +300,7 @@ declare function facet:finish(
 )
   as element(search:facet)
 {
+
   (: grab bucketed-constraint from $start :)
   let $bucketed-constraint := $start[1]
   let $real-start := subsequence($start, 2)
