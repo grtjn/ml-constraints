@@ -202,6 +202,8 @@ Inside config you can insert groups, and provide multiple match patterns for eac
       <match pattern="Z*"/>
     </group>
 
+IMPORTANT: move facet-options related to fragment scoping over to the custom tag!
+
 E.g. this:
 
     <constraint name="myconstraint">
@@ -211,6 +213,7 @@ E.g. this:
         <facet-option>frequency-order</facet-option>
         <facet-option>descending</facet-option>
         <facet-option>limit=10</facet-option>
+        <facet-option>properties</facet-option>
       </range>
     
     </constraint>
@@ -222,6 +225,9 @@ would become:
         <parse apply="parse-structured" ns="http://marklogic.com/grouping-constraint" at="/ext/mlpm_modules/ml-constraints/grouping-constraint.xqy"/>
         <start-facet apply="start" ns="http://marklogic.com/grouping-constraint" at="/ext/mlpm_modules/ml-constraints/grouping-constraint.xqy"/>
         <finish-facet apply="finish" ns="http://marklogic.com/grouping-constraint" at="/ext/mlpm_modules/ml-constraints/grouping-constraint.xqy"/>
+        
+        <!-- moved this facet-option to here to make sure correct fragments are used -->
+        <facet-option>properties</facet-option>
       </custom>
       <annotation>
       
@@ -230,6 +236,7 @@ would become:
           <facet-option>frequency-order</facet-option>
           <facet-option>descending</facet-option>
           <facet-option>limit=10</facet-option>
+          <!-- moved fragment scope facet-option to custom tag -->
         </range>
         
         <config>
