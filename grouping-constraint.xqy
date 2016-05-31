@@ -23,6 +23,11 @@ declare function facet:parse-structured(
   
   (: take appropriate constraint from full $options :)
   let $constraint := $options/search:constraint[@name eq $constraint-name]
+  let $fragments :=
+    if ($constraint/*/search:facet-option = 'any') then
+      ('document', 'locks', 'properties')
+    else
+      $constraint/*/search:facet-option[. = ('document', 'locks', 'properties')]/string(.)
 
   (: get grouping config from annotation :)
   let $config := facet:_get-config( $constraint )
@@ -71,12 +76,19 @@ declare function facet:parse-structured(
             <searchdev:tok type="term">##$$@@FAKEVALUE##$$@@</searchdev:tok>
           )
           let $query := impl:parse($toks, $real-options, 0)
-          let $real-query := facet:_insert-values(document{$query}/*, $values)
-          return
+          let $values-query := facet:_insert-values(document{$query}/*, $values)
+          let $real-query :=
             if ($terms = $config/search:show-remainder/@label) then
-              <cts:not-query>{ $real-query }</cts:not-query>
+              <cts:not-query>{ $values-query }</cts:not-query>
             else
-              $real-query
+              $values-query
+          return
+            <cts:or-query>{
+              for $fragment in $fragments
+              return element { xs:QName("cts:" || $fragment || "-fragment-query") } {
+                $real-query
+              }
+            }</cts:or-query>
 
         else (: no values :)
           if ($terms = $config/search:show-remainder/@label) then
