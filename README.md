@@ -7,7 +7,7 @@ Pre-built custom search constraints that go beyond what the MarkLogic REST API p
 Installation depends on the [MarkLogic Package Manager](https://github.com/joemfb/mlpm):
 
 ```
-$ mlpm install ml-constraint --save
+$ mlpm install ml-constraints --save
 $ mlpm deploy
 ```
 
