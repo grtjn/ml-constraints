@@ -170,7 +170,7 @@ declare function facet:start(
     if ($isDateConstraint) then
       let $max :=
         if ($isDateTimeConstraint) then
-          xs:date($max) + xs:dayTimeDuration("P1D") (: round up because of partial days :)
+          xs:date($max) + xs:dayTimeDuration("P1D") - xs:dayTimeDuration("PT0.001S") (: round up because of partial days :)
         else
           xs:date($max)
       let $min := xs:date($min)
