@@ -117,7 +117,11 @@ declare function facet:finish(
     $quality-weight,
     $forests
   )
-
+  let $facets := element { node-name($facets) } {
+    attribute type { "custom" },
+    $facets/(@* except @type),
+    $facets/node()
+  }
   return $facet
 };
 
