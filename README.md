@@ -11,6 +11,64 @@ $ mlpm install ml-constraints --save
 $ mlpm deploy
 ```
 
+## others-where-constraint
+
+This custom constraint can be wrapped around any existing search constraint to provide alternative facet value counts. By excluding queries from the constraint itself, facet values will include alternative values, and matching counts, while still respecting constraints from other facets.
+
+### Usage
+
+Take an existing search constraint in your REST api query options, and put the following after the open tag `<constraint name="myconstraint">`:
+
+    <custom>
+      <parse apply="parse-structured" ns="http://marklogic.com/others-where-constraint" at="/ext/mlpm_modules/ml-constraints/others-where-constraint.xqy"/>
+      <start-facet apply="start" ns="http://marklogic.com/others-where-constraint" at="/ext/mlpm_modules/ml-constraints/others-where-constraint.xqy"/>
+      <finish-facet apply="finish" ns="http://marklogic.com/others-where-constraint" at="/ext/mlpm_modules/ml-constraints/others-where-constraint.xqy"/>
+    </custom>
+    <annotation>
+
+Put the following before the closing tag `</constraint>`:
+
+    </annotation>
+
+E.g. this:
+
+    <constraint name="myconstraint">
+    
+      <range collation="http://marklogic.com/collation/" type="xs:string" facet="true">
+        <element ns="http://some-ns.com/example" name="myexample"/>
+        <facet-option>frequency-order</facet-option>
+        <facet-option>descending</facet-option>
+        <facet-option>limit=10</facet-option>
+      </range>
+    
+    </constraint>
+
+would become:
+
+    <constraint name="myconstraint">
+      <custom>
+        <parse apply="parse-structured" ns="http://marklogic.com/others-where-constraint" at="/ext/mlpm_modules/ml-constraints/others-where-constraint.xqy"/>
+        <start-facet apply="start" ns="http://marklogic.com/others-where-constraint" at="/ext/mlpm_modules/ml-constraints/others-where-constraint.xqy"/>
+        <finish-facet apply="finish" ns="http://marklogic.com/others-where-constraint" at="/ext/mlpm_modules/ml-constraints/others-where-constraint.xqy"/>
+      </custom>
+      <annotation>
+      
+        <range collation="http://marklogic.com/collation/" type="xs:string" facet="true">
+          <element ns="http://some-ns.com/example" name="myexample"/>
+          <facet-option>frequency-order</facet-option>
+          <facet-option>descending</facet-option>
+          <facet-option>limit=10</facet-option>
+        </range>
+        
+      </annotation>
+    </constraint>
+
+### Known issues
+
+- This constraint only implements a parse-structured method, and is therefore only supported by the REST api. The parse-string approach does not pass through the full query options, which is essential in this case
+- Custom constraints currently only support `EQ` comparison, e.g. `myconstraint:somevalue`, and **not** `myconstraint GT somevalue` (RFE has been filed)
+- Due to a bug/limitation of the REST api parse-structured-style constraints are not supported by /v1/suggest (Bug has been filed)
+
 ## additional-query-constraint
 
 This custom constraint can be wrapped around any existing search constraint to apply an additional query that only applies to that search constraint (and its facet values).
