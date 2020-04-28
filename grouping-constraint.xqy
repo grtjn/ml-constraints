@@ -20,7 +20,7 @@ declare function facet:parse-structured(
   (: pull parameters from $query-elem :)
   let $constraint-name as xs:string := $query-elem/search:constraint-name
   let $terms as xs:string* := $query-elem//(search:text, search:value)
-  
+
   (: take appropriate constraint from full $options :)
   let $constraint := $options/search:constraint[@name eq $constraint-name]
   let $fragments :=
@@ -28,34 +28,37 @@ declare function facet:parse-structured(
       ('document', 'locks', 'properties')
     else
       $constraint/*/search:facet-option[. = ('document', 'locks', 'properties')]/string(.)
+  let $fragments :=
+    if (exists($fragments)) then
+      $fragments
+    else
+      'document' (: TODO: consider fragment-scope :)
 
   (: get grouping config from annotation :)
   let $config := facet:_get-config( $constraint )
   let $groups := facet:_get-groups( $config )
-  
+
   (: check if $terms matches any group :)
   let $matching-groups :=
     if ($terms = $config/search:show-remainder/@label) then
       $groups
     else
       $groups[@label = $terms]
-  
+
   return
     if (empty($matching-groups)) then
       let $log-warning := xdmp:log(concat("No group name(s) matching: '", string-join($terms, "', '"), "'"))
       return <cts:or-query/> (: nothing will match :)
     else
-  
+
       (: pull real constraint def from annotation :)
       let $real-constraint := facet:_get-real-constraint( $constraint )
 
       (: loop through to search impl to derive index reference from $real-constraint :)
       let $reference := impl:construct-reference(impl:get-refspecs($real-constraint))
-  
+
       (: use patterns to pull search values from lexicons :)
-      let $values :=
-        for $pattern in $matching-groups/search:match/@pattern
-        return cts:value-match($reference, $pattern)
+      let $values := facet:_get-matches($reference, $matching-groups/search:match/@pattern)
 
       return
         if (exists($values)) then
@@ -67,7 +70,7 @@ declare function facet:parse-structured(
               $options/node()[@name != $constraint-name],
               $real-constraint
             }
-  
+
           (: loop through to search impl for parse (passing through tokens, because we jump into processing of the AST) :)
           let $toks := (
             <searchdev:tok type="term">{ $constraint-name }</searchdev:tok>,
@@ -111,7 +114,7 @@ declare function facet:start(
 
   (: get grouping config from annotation :)
   let $config := facet:_get-config( $constraint )
-  
+
   (: isolate limit from $facet-options:)
   let $limit := xs:int(
     substring-after(
@@ -142,12 +145,12 @@ declare function facet:start(
             $forests
           )
         )
-        
-        let $anti-sum := sum(
+
+        let $anti-values :=
           for $group in $groups
           for $anti-pattern in $group/search:match/@pattern
           return
-            for $anti-value in cts:value-match(
+            cts:value-match(
               $reference,
               $anti-pattern,
               ("concurrent", $facet-options),
@@ -155,13 +158,28 @@ declare function facet:start(
               $quality-weight,
               $forests
             )
-            return cts:frequency($anti-value)
+        let $anti-sum := sum(
+          for $anti-value in $anti-values
+          return
+            cts:frequency($anti-value)
         )
-        
+        (: one large estimate on all anti-values might be quicker than sum of their frequencies?
+        let $anti-sum := xdmp:estimate(
+          cts:search(collection(),
+            cts:and-query((
+              $query,
+
+            ))
+            ("unfaceted"),
+            $quality-weight,
+            $forests
+          )
+        )
+        :)
         return $overall-sum - $anti-sum
-      
+
       else
-      
+
         sum(
           for $pattern in $group/search:match/@pattern
           for $value in cts:value-match(
@@ -174,7 +192,7 @@ declare function facet:start(
           )
           return cts:frequency($value)
         )
-        
+
     where $sum gt 0
     order by $sum descending
     return
@@ -207,7 +225,7 @@ declare private function facet:_get-real-constraint(
 {
   element opt:constraint {
     $constraint/@*,
-    
+
     for $node in $constraint/search:annotation/*[ empty( self::search:config ) ]
     return
       element { node-name($node) } {
@@ -244,7 +262,7 @@ declare private function facet:_match-group-by-value(
     for $group in facet:_get-groups($config)
     let $label := $group/@label
       for $pattern in $group/search:match/@pattern
-      let $match-pattern := replace($pattern, "*", ".*")
+      let $match-pattern := replace(replace($pattern, "?", "."), "*", ".*")
       return
         if ( matches($value, $match-pattern) ) then
           $group
@@ -263,7 +281,7 @@ declare private function facet:_insert-values(
 {
   for $node in $query
   return typeswitch ($node)
-  
+
     (: replace fake value, and expand according to $values :)
     case schema-element(cts:text)
     return
@@ -283,7 +301,7 @@ declare private function facet:_insert-values(
         $node,
         $values
       )
-    
+
     (: recursive descend :)
     case element()
     return
@@ -291,7 +309,7 @@ declare private function facet:_insert-values(
         $node,
         facet:_insert-values($node/node(), $values)
       )
-    
+
     (: fall-through for non-elements :)
     default return $node
 };
@@ -321,4 +339,31 @@ declare private function facet:_copy-element(
     $elem/namespace::*,
     $contents
   }
+};
+
+declare private function facet:_get-matches(
+  $reference,
+  $patterns as xs:anyAtomicType*
+)
+  as xs:anyAtomicType*
+{
+  facet:_get-matches($reference, $patterns, (), (), (), ())
+};
+
+declare private function facet:_get-matches(
+  $reference,
+  $patterns as xs:anyAtomicType*,
+  $options,
+  $query,
+  $quality-weight,
+  $forests
+)
+  as xs:anyAtomicType*
+{
+  for $pattern in $patterns
+  return
+    if (contains($pattern, "?") or contains($pattern, "*")) then
+      cts:value-match($reference, $pattern, $options, $query, $quality-weight, $forests)
+    else
+      $pattern
 };

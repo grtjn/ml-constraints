@@ -49,7 +49,7 @@ declare function facet:parse-structured(
   let $query := impl:parse($toks, $real-options, 0)
 
   (: keep track of what query comes from which constraint :)
-  let $_ := map:put($parsed-queries, $constraint-name, (map:get($parsed-queries, $constraint-name), $query))
+  let $_ := map:put($parsed-queries, $constraint-name, (map:get($parsed-queries, $constraint-name), cts:query($query)))
 
   (: return the query :)
   return $query
@@ -69,7 +69,7 @@ declare function facet:start(
 
   (: exclude sub-queries for this constraint from overall query :)
   let $filtered-query :=
-    if ($parsed) then
+    if (exists($parsed)) then
       facet:_filter-query( $query, $parsed )
     else
       $query
@@ -107,7 +107,7 @@ declare function facet:finish(
 
   (: exclude sub-queries for this constraint from overall query :)
   let $filtered-query :=
-    if ($parsed) then
+    if (exists($parsed)) then
       facet:_filter-query( $query, $parsed )
     else
       $query
@@ -120,7 +120,7 @@ declare function facet:finish(
     if ( $real-constraint/opt:range[opt:bucket|opt:computed-bucket] ) then
       impl:resolve-buckets($real-constraint)
     else ()
-  return
+  let $facet :=
     impl:finish-facet(
       $real-constraint,
       $buckets,
@@ -129,11 +129,17 @@ declare function facet:finish(
       $quality-weight,
       $forests
     )
+  return
+    element { node-name($facet) } {
+      $facet/(@* except @type),
+      attribute type { 'custom' },
+      $facet/node()
+    }
 };
 
 declare private function facet:_intersect( $left, $right ) {
-  let $r := $right ! xdmp:quote($right)
-  for $l in $left ! xdmp:quote($left)
+  let $r := $right ! xdmp:quote(.)
+  for $l in $left ! xdmp:quote(.)
   where $l = $r
   return $l
 };
