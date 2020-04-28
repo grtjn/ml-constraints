@@ -329,6 +329,7 @@ would become:
           <facet-option>descending</facet-option>
           <facet-option>limit=10</facet-option>
         </range>
+      </annotation>
     </constraint>
 
 In the UI you have to take care of the multi select bit for this facet.
